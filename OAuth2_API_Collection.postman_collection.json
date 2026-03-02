@@ -1,0 +1,271 @@
+{
+  "info": {
+    "name": "OAuth2 Server - Complete API Collection",
+    "_postman_id": "oauth2-server-collection",
+    "description": "Complete API collection for testing the OAuth 2.0 Authorization Server and Login Server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "auth_server", "value": "http://localhost:9000" },
+    { "key": "login_server", "value": "http://localhost:8081" },
+    { "key": "client_id", "value": "test-client" },
+    { "key": "client_secret", "value": "REPLACE_WITH_YOUR_SECRET" },
+    { "key": "redirect_uri", "value": "http://localhost:8080/callback" },
+    { "key": "access_token", "value": "" },
+    { "key": "auth_code", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth Server (:9000)",
+      "item": [
+        {
+          "name": "1. Register Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"my-app\",\n  \"scopes\": [\"read\", \"write\"],\n  \"grantTypes\": [\"authorization_code\", \"client_credentials\"],\n  \"redirectUri\": \"http://localhost:8080/callback\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_server}}/api/clients",
+              "host": ["{{auth_server}}"],
+              "path": ["api", "clients"]
+            },
+            "description": "Register a new OAuth client. Returns client_id and auto-generated client_secret. Save the secret!"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var resp = pm.response.json();",
+                  "    pm.collectionVariables.set('client_id', resp.client_id);",
+                  "    pm.collectionVariables.set('client_secret', resp.client_secret);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Get Token (Client Credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}" },
+                { "key": "password", "value": "{{client_secret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "read write" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_server}}/oauth2/token",
+              "host": ["{{auth_server}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Get an access token using client credentials (no user involved). Returns JWT access_token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var resp = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', resp.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Authorize (Browser - Auth Code Flow)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{auth_server}}/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope=read write&state=random123",
+              "host": ["{{auth_server}}"],
+              "path": ["authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" },
+                { "key": "scope", "value": "read write" },
+                { "key": "state", "value": "random123" }
+              ]
+            },
+            "description": "OPEN THIS IN A BROWSER. Starts the authorization code flow. Will redirect to login page, then back to redirect_uri with ?code=...&state=... Copy the 'code' from the redirect URL."
+          }
+        },
+        {
+          "name": "4. Exchange Code for Token (Auth Code Flow)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}" },
+                { "key": "password", "value": "{{client_secret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "authorization_code" },
+                { "key": "code", "value": "{{auth_code}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_server}}/oauth2/token",
+              "host": ["{{auth_server}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Exchange the authorization code (from step 3) for an access token. Set the 'auth_code' variable first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var resp = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', resp.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Introspect Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{access_token}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_server}}/api/introspect",
+              "host": ["{{auth_server}}"],
+              "path": ["api", "introspect"]
+            },
+            "description": "Validate an access token and get its details (active status, subject, scopes, expiry, etc.)"
+          }
+        },
+        {
+          "name": "6. JWK Set (Public Keys)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{auth_server}}/oauth2/jwks",
+              "host": ["{{auth_server}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Get the JSON Web Key Set (public keys used to verify JWT signatures)"
+          }
+        },
+        {
+          "name": "7. OpenID Configuration",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{auth_server}}/.well-known/openid-configuration",
+              "host": ["{{auth_server}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "OpenID Connect discovery endpoint — lists all supported endpoints and capabilities"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login Server (:8081)",
+      "item": [
+        {
+          "name": "1. Login Page (Browser)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{login_server}}/login?auth_server_url=http://localhost:9000/login",
+              "host": ["{{login_server}}"],
+              "path": ["login"],
+              "query": [
+                { "key": "auth_server_url", "value": "http://localhost:9000/login" }
+              ]
+            },
+            "description": "OPEN IN BROWSER. Shows the login/signup form. Normally reached via redirect from auth server."
+          }
+        },
+        {
+          "name": "2. Signup (Create User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "testuser" },
+                { "key": "password", "value": "testpass" },
+                { "key": "auth_server_url", "value": "http://localhost:9000/login" }
+              ]
+            },
+            "url": {
+              "raw": "{{login_server}}/signup",
+              "host": ["{{login_server}}"],
+              "path": ["signup"]
+            },
+            "description": "Register a new user. Stores username/password in MySQL."
+          }
+        },
+        {
+          "name": "3. Authenticate User (REST API)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"testpass\"\n}"
+            },
+            "url": {
+              "raw": "{{login_server}}/api/authenticate",
+              "host": ["{{login_server}}"],
+              "path": ["api", "authenticate"]
+            },
+            "description": "Validate user credentials. Returns 200 if valid, 401 if invalid. Used internally by auth server."
+          }
+        }
+      ]
+    }
+  ]
+}

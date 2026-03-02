@@ -1,0 +1,8 @@
+com\oauth2\authserver\controller\ClientRegistrationController$ClientRegistrationRequest.class
+com\oauth2\authserver\config\DefaultSecurityConfig.class
+com\oauth2\authserver\controller\TokenIntrospectionController.class
+com\oauth2\authserver\controller\ClientRegistrationController.class
+com\oauth2\authserver\AuthServerApplication.class
+com\oauth2\authserver\config\DefaultSecurityConfig$1.class
+com\oauth2\authserver\controller\LoginPageController.class
+com\oauth2\authserver\config\AuthorizationServerConfig.class
